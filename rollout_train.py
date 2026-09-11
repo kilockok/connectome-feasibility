@@ -464,6 +464,9 @@ def main():
     if args.seed is not None:
         cfg.seed = args.seed
     rc = build_rollout_config(args, cfg)
+    if rc.eval_only:
+        raise SystemExit("experiment A is eval-only: run rollout_eval.py "
+                         "over the phase-1 checkpoint instead")
     print(f"[exp] {rc.experiment} model={rc.model} scale={rc.scale} "
           f"mechanistic={rc.mechanistic} dagger={rc.dagger} "
           f"noise={rc.noise} macro={rc.macro_loss} surrogate={rc.surrogate} "

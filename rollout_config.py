@@ -29,6 +29,7 @@ class StageConfig:
     n_traj: int = 512               # train trajectories per epoch
     batch_size: int | None = None   # None -> RolloutConfig.batch_size
     closed_loop: bool = False       # stage 5 marker (teacher_ratio == 0)
+    force_ckpt: bool = False        # always gradient-checkpoint this stage
 
 
 def default_stages(scale: str) -> list[StageConfig]:
@@ -40,7 +41,8 @@ def default_stages(scale: str) -> list[StageConfig]:
         StageConfig("s1_u8",   8, 15, teacher_ratio=0.90, noise_sigma=1e-4,
                     dagger_mix=0.2, lr_factor=1.0,   n_traj=512, batch_size=bs),
         StageConfig("s2_u16", 16, 20, teacher_ratio=0.70, noise_sigma=3e-4,
-                    dagger_mix=0.3, lr_factor=0.5,   n_traj=512, batch_size=bs),
+                    dagger_mix=0.3, lr_factor=0.5,   n_traj=512, batch_size=bs,
+                    force_ckpt=True),
         StageConfig("s3_u32", 32, 25, teacher_ratio=0.50, noise_sigma=1e-3,
                     dagger_mix=0.5, lr_factor=0.25,  n_traj=384, batch_size=bs),
         StageConfig("s4_u64", 64, 30, teacher_ratio=0.25, noise_sigma=3e-3,
@@ -121,11 +123,13 @@ class RolloutConfig:
 
     # ------------------------------------------------------------------
     def use_grad_ckpt(self, stage: StageConfig) -> bool:
+        if stage.force_ckpt:
+            return True
         if self.grad_ckpt == "on":
             return True
         if self.grad_ckpt == "off":
             return False
-        return stage.unroll >= 32
+        return stage.unroll >= 16
 
     def stage_batch_size(self, stage: StageConfig) -> int:
         return stage.batch_size or self.batch_size
