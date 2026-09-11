@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+results/cache/
+results/checkpoints/
+results/figures/
+results/*.csv
+results/*.json
+logs/
+logs_*.txt
+*.log

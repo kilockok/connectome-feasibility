@@ -1,0 +1,12 @@
+# PyTorch — pick ONE build for your platform, then install the rest:
+#   NVIDIA (CUDA 12.8, RTX 4090/5090):
+#     pip install torch --index-url https://download.pytorch.org/whl/cu128
+#   Intel Arc (XPU):
+#     pip install torch --index-url https://download.pytorch.org/whl/xpu
+#   CPU-only:  pip install torch
+# device.py picks XPU > CUDA > CPU automatically; no code change needed.
+torch>=2.7
+numpy
+matplotlib
+scikit-learn
+pandas
