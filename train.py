@@ -88,6 +88,11 @@ def _compose_straight_through(out: dict, cfg, threshold: float = 0.5):
     return v, sp, r
 
 
+def ckpt_tag(args) -> str:
+    return (f"_ablate-{args.graph_ablate}"
+            if getattr(args, "graph_ablate", "none") != "none" else "")
+
+
 def finetune_unroll(model, args, cfg, sim, device, pos_weight, ckpt_path):
     """Phase-2 (optional): multi-step unrolled fine-tuning.
 
@@ -97,7 +102,8 @@ def finetune_unroll(model, args, cfg, sim, device, pos_weight, ckpt_path):
     checkpoint first and saves to a *_ms checkpoint (never overwrites).
     """
     base_path = (CHECKPOINT_DIR /
-                 f"ckpt_{args.model}_{args.scale}_seed{cfg.seed}.pt")
+                 f"ckpt_{args.model}_{args.scale}"
+                 f"{ckpt_tag(args)}_seed{cfg.seed}.pt")
     blob = torch.load(base_path, map_location="cpu", weights_only=False)
     model.load_state_dict(blob["state_dict"])
     print(f"[unroll] initialised from phase-1 checkpoint "
@@ -167,7 +173,8 @@ def finetune_unroll(model, args, cfg, sim, device, pos_weight, ckpt_path):
                         "seed": cfg.seed, "epoch": epoch, "unroll": U,
                         "val_loss": best_val,
                         "state_dict": model.state_dict()}, ckpt_path)
-    hist_path = RESULTS_DIR / f"history_{args.model}_{args.scale}_ms.csv"
+    hist_path = RESULTS_DIR / (f"history_{args.model}_{args.scale}"
+                               f"{ckpt_tag(args)}_ms.csv")
     with open(hist_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=list(history[0].keys()))
         writer.writeheader()
@@ -187,6 +194,12 @@ def main():
     parser.add_argument("--unroll-lr", type=float, default=1e-4)
     parser.add_argument("--unroll-traj", type=int, default=512,
                         help="trajectories per unroll epoch (fine-tune subset)")
+    parser.add_argument("--graph-ablate", default="none",
+                        choices=["none", "shuffle-edges", "shuffle-weights",
+                                 "identity"],
+                        help="sanity control: corrupt the graph seen by the "
+                             "MODEL only; the simulator always uses the true "
+                             "connectome")
     args = parser.parse_args()
 
     cfg = get_config(args.scale)
@@ -199,12 +212,24 @@ def main():
     device = get_device(override=args.device)
     conn = get_connectome(cfg, device)
     sim = LIFSimulator(conn, cfg, device)
-    model = build_model(args.model, cfg, conn, device)
+    if args.graph_ablate != "none":
+        if args.model != "connectome":
+            raise SystemExit("--graph-ablate is only meaningful for "
+                             "--model connectome")
+        from ablate import ablate_connectome
+        model_conn = ablate_connectome(conn, args.graph_ablate,
+                                       cfg.seed + 999).to(device)
+        print(f"[ablate] model sees graph: {args.graph_ablate} "
+              f"(simulator uses the TRUE connectome)")
+    else:
+        model_conn = conn
+    model = build_model(args.model, cfg, model_conn, device)
     pos_weight = torch.tensor(cfg.spike_pos_weight, device=device)
 
     if args.unroll > 0:
         ms_path = (CHECKPOINT_DIR /
-                   f"ckpt_{args.model}_{args.scale}_ms_seed{cfg.seed}.pt")
+                   f"ckpt_{args.model}_{args.scale}"
+                   f"{ckpt_tag(args)}_ms_seed{cfg.seed}.pt")
         finetune_unroll(model, args, cfg, sim, device, pos_weight, ms_path)
         return
 
@@ -221,8 +246,10 @@ def main():
     gen_chunk = max(8 * B, 64)      # generate trajectories in large chunks
                                     # (amortises the 256-step python loop)
     ckpt_path = (CHECKPOINT_DIR /
-                 f"ckpt_{args.model}_{args.scale}_seed{cfg.seed}.pt")
-    hist_path = RESULTS_DIR / f"history_{args.model}_{args.scale}.csv"
+                 f"ckpt_{args.model}_{args.scale}"
+                 f"{ckpt_tag(args)}_seed{cfg.seed}.pt")
+    hist_path = (RESULTS_DIR /
+                 f"history_{args.model}_{args.scale}{ckpt_tag(args)}.csv")
 
     best_val = float("inf")
     bad_epochs = 0
