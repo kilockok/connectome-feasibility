@@ -323,25 +323,51 @@ def run_reinjection(model, data: dict, cfg, device, threshold: float,
 
 # ----------------------------------------------------------------------
 # entries / model loading
-def resolve_entries(args, cfg) -> list[tuple[str, Path]]:
-    """Explicit --entry LABEL=PATH entries, or defaults: the phase-1
-    checkpoint plus every v3r final (E0..E3) that exists on disk. Missing
-    checkpoints are skipped with a printed notice."""
-    entries: list[tuple[str, Path]] = []
+def _parse_override(spec: str) -> dict:
+    """'k=v;k=v' -> {k: typed v} (int/float/bool/str coercion)."""
+    out = {}
+    for pair in spec.split(";"):
+        if not pair.strip():
+            continue
+        k, _, v = pair.partition("=")
+        v = v.strip()
+        if v.lower() in ("true", "false"):
+            v = v.lower() == "true"
+        else:
+            try:
+                v = int(v)
+            except ValueError:
+                try:
+                    v = float(v)
+                except ValueError:
+                    pass
+        out[k.strip()] = v
+    return out
+
+
+def resolve_entries(args, cfg) -> list[tuple[str, Path, dict]]:
+    """Explicit --entry LABEL=PATH[|k=v;k=v] entries (optional model_kwargs
+    override for eval-time ablations, e.g. k_hist=1 on the same weights), or
+    defaults: phase-1 + every v3r final that exists on disk."""
+    entries: list[tuple[str, Path, dict]] = []
     if args.entry:
         for spec in args.entry:
             if "=" not in spec:
                 raise SystemExit(f"--entry expects LABEL=PATH, got {spec!r}")
-            label, path = spec.split("=", 1)
-            p = Path(path)
+            label, rest = spec.split("=", 1)
+            overrides = {}
+            if "|" in rest:
+                rest, ov = rest.split("|", 1)
+                overrides = _parse_override(ov)
+            p = Path(rest)
             if not p.exists():
                 print(f"[skip] entry {label!r}: checkpoint not found: {p}")
                 continue
-            entries.append((label.strip(), p))
+            entries.append((label.strip(), p, overrides))
     else:
         p1 = phase1_ckpt_path(cfg, args.model)
         if p1.exists():
-            entries.append(("phase1", p1))
+            entries.append(("phase1", p1, {}))
         else:
             print(f"[skip] default phase-1 entry missing: {p1}")
         for exp in V3R_EXPERIMENTS:
@@ -350,19 +376,20 @@ def resolve_entries(args, cfg) -> list[tuple[str, Path]]:
                                **MATRICES["v3r"][exp])
             p = final_ckpt_path(rc)
             if p.exists():
-                entries.append((exp, p))
+                entries.append((exp, p, {}))
             else:
                 print(f"[skip] v3r/{exp}: no final checkpoint ({p.name})")
     if not entries:
         raise SystemExit("no usable entries after skips: pass --entry "
                          "LABEL=PATH or train the v3r matrix first")
-    labels = [l for l, _ in entries]
+    labels = [l for l, _, _ in entries]
     if len(set(labels)) != len(labels):
         raise SystemExit(f"duplicate entry labels: {labels}")
     return entries
 
 
-def load_entry_model(path: Path, cfg, conn, device, scale: str):
+def load_entry_model(path: Path, cfg, conn, device, scale: str,
+                     overrides: dict | None = None):
     """Rebuild a model from a checkpoint blob. v3r finals get their exact
     RolloutConfig back (MATRICES['v3r'][exp], version='v3r', like
     run_rollout_v2.py constructs it); every blob's model_kwargs is passed to
@@ -382,6 +409,7 @@ def load_entry_model(path: Path, cfg, conn, device, scale: str):
         rc = RolloutConfig(base=cfg, experiment=exp, model=name, scale=scale,
                            version="v4", **MATRICES["v4"][exp])
     kwargs = dict(blob.get("model_kwargs") or {})
+    kwargs.update(overrides or {})          # eval-time ablation overrides
     model = build_model(name, cfg, conn, device, kwargs)
     mechanistic = bool(blob.get("mechanistic", False))
     if mechanistic:
@@ -742,7 +770,7 @@ def main():
     entries = resolve_entries(args, cfg)
     print(f"[setup] scale={args.scale} N={cfg.n_neurons} T={cfg.T} K={cfg.K} "
           f"H={H} horizons={horizons} n_traj={n_traj} "
-          f"entries={[l for l, _ in entries]}")
+          f"entries={[l for l, _, _ in entries]}")
 
     print("[data] loading fixed eval splits ...")
     data = {split: load_or_generate(split, sim, cfg)
@@ -750,10 +778,10 @@ def main():
 
     results: dict = {}
     labels: list[str] = []
-    for label, path in entries:
+    for label, path, overrides in entries:
         torch.manual_seed(cfg.seed + SEED_OFFSET)   # identical per entry
         model, blob, _rc = load_entry_model(path, cfg, conn, device,
-                                            args.scale)
+                                            args.scale, overrides)
 
         # threshold tuned on VAL only, frozen for all test evaluation
         th = tune_threshold(model, data["val"], cfg, device, n_windows=512)
