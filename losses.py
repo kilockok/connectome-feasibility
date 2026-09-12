@@ -85,7 +85,13 @@ def multistep_loss(step_outs: list[dict],        # len U, raw model outputs
     L_delta = mse(v_h - v_{h-1}, t_h - t_{h-1})         * lambda_delta
               (h-1 = 0 uses targets[:, 0] v and the FED state passed via
                step_states' predecessor — i.e. v_{-1} := targets[:, 0, :, 0])
-    Returns (total, parts dict with every component + 'loss')."""
+    threshold-weighted term only if rc.threshold_loss (phase-3, spec 十六):
+    L_thresh = mean(w * (composed v - target v)^2)      * lambda_thresh
+               with w = 1 + thresh_alpha * exp(-|v_true - v_th| / thresh_sigma)
+               — neurons whose TRUE membrane sits near the threshold, where a
+               tiny V error flips a spike decision, dominate the term.
+    Returns (total, parts dict with every component + 'loss'; the 'thresh'
+    key is present only when rc.threshold_loss is on)."""
     U = len(step_outs)
     if not (len(step_states) == U and targets.shape[1] == U + 1):
         raise ValueError(f"len(step_outs)={U}, len(step_states)="
@@ -93,6 +99,8 @@ def multistep_loss(step_outs: list[dict],        # len U, raw model outputs
                          f"{targets.shape[1]} (need U and U+1)")
     mechanistic = ("dv" in step_outs[0]) or ("s_logits_aux" in step_outs[0])
     macro = bool(getattr(rc, "macro_loss", False)) and groups is not None
+    thresh = bool(getattr(rc, "threshold_loss", False))
+    v_th = float(rc.base.v_th) if hasattr(rc, "base") else 1.0
 
     weights = [rc.gamma ** h for h in range(U)]
     w_norm = sum(weights)
@@ -102,6 +110,9 @@ def multistep_loss(step_outs: list[dict],        # len U, raw model outputs
     comp: dict[str, torch.Tensor] = {
         k: torch.zeros((), device=targets.device, dtype=targets.dtype)
         for k in ("v", "spike", "r", "rate", "pop", "delta")}
+    if thresh:
+        comp["thresh"] = torch.zeros((), device=targets.device,
+                                     dtype=targets.dtype)
 
     v_prev = targets[:, 0, :, 0]           # v_{-1}: last true context V
     for h in range(U):
@@ -124,6 +135,12 @@ def multistep_loss(step_outs: list[dict],        # len U, raw model outputs
         comp["v"] = comp["v"] + w * lv
         comp["spike"] = comp["spike"] + w * ls
         comp["r"] = comp["r"] + w * lr_
+        if thresh:
+            wt = 1.0 + float(getattr(rc, "thresh_alpha", 6.0)) * torch.exp(
+                -(tv - v_th).abs() / float(getattr(rc, "thresh_sigma", 0.25)))
+            l_thresh = (wt * (v - tv) ** 2).mean()
+            l_step = l_step + float(getattr(rc, "lambda_thresh", 1.0)) * l_thresh
+            comp["thresh"] = comp["thresh"] + w * l_thresh
         if macro:
             l_rate = F.mse_loss(sp.mean(dim=1), ts.mean(dim=1))
             l_pop = F.mse_loss((sp @ groups.T) / gsize,
@@ -140,3 +157,114 @@ def multistep_loss(step_outs: list[dict],        # len U, raw model outputs
     parts = {"loss": float(total.item())}
     parts.update({k: float(c.item()) for k, c in comp.items()})
     return total, parts
+
+
+# ----------------------------------------------------------------------
+# Tangent / local-stability loss (finite-difference Jacobian matching).
+def tangent_loss(model, ctx: torch.Tensor, sim, cfg,
+                 sigma: float, gen: torch.Generator,
+                 use_ckpt: bool = False) -> torch.Tensor:
+    """L_tangent = MSE( F_theta(x+dv) - F_theta(x),  F_LIF(x+dv) - F_LIF(x) )
+    over the membrane increment dv only (the spike/refractory response to a
+    small V nudge is what drives silent-attractor drift). ctx is the model's
+    input window [B, K, N, 4]; its last-step V is nudged by sigma*randn to
+    form the perturbed window. Teacher increments come from one simulator
+    step on (V, S, R) with the next true stimulus (F_LIF, matching the
+    convention F_LIF(x_t, U[t+1])). Returns a scalar; gradient flows only
+    into the perturbed model branch."""
+    B, K, N, _ = ctx.shape
+    dev = ctx.device
+    v_t = ctx[:, -1, :, 0]
+    s_t = ctx[:, -1, :, 1]
+    r_t = ctx[:, -1, :, 2]
+    u_next = ctx[:, -1, :, 3]                       # stimulus at t+1
+
+    # teacher increments on (V,S,R) — no_grad
+    with torch.no_grad():
+        dv = (torch.randn(v_t.shape, generator=gen) * sigma).to(dev)
+        v_pert = v_t + dv
+        r_un = r_t * float(cfg.refractory_period)
+        st_c = sim.simulate(u_next[:, None, :], state0=(v_t, s_t, r_un))[:, 0]
+        st_p = sim.simulate(u_next[:, None, :], state0=(v_pert, s_t, r_un))[:, 0]
+        d_teacher = st_p[..., 0] - st_c[..., 0]     # [B, N] membrane response
+
+    # model increments: rebuild a window whose last-step V is v_t + dv
+    ctx_pert = ctx.clone()
+    ctx_pert[:, -1, :, 0] = v_t + dv
+    if use_ckpt:
+        out_c = torch.utils.checkpoint.checkpoint(model, ctx, use_reentrant=False)
+        out_p = torch.utils.checkpoint.checkpoint(model, ctx_pert, use_reentrant=False)
+    else:
+        out_c = model(ctx)
+        out_p = model(ctx_pert)
+    d_model = out_p["v"] - out_c["v"]               # [B, N]
+    return F.mse_loss(d_model, d_teacher)
+
+
+# ----------------------------------------------------------------------
+# rollout_v4 (spec §12-13): multi-scale tangent + perturbed-state teacher
+def tangent_loss_full(model, ctx: torch.Tensor, sim, cfg,
+                      sigma: float, gen: torch.Generator,
+                      pos_weight: torch.Tensor,
+                      use_ckpt: bool = False) -> tuple[torch.Tensor, torch.Tensor]:
+    """Tangent consistency PLUS the absolute perturbed-state teacher loss.
+
+    L_tangent   = MSE( F_theta(x+dv) - F_theta(x),  F_LIF(x+dv) - F_LIF(x) )
+    L_perturbed = state loss of the PERTURBED branch alone:
+                  MSE(v_p, v_teacher_p)
+                + BCE(s_logits_p, s_teacher_p; pos_weight)
+                + MSE(r_p, r_teacher_p)
+    Rationale (spec §13): matching only the Delta response does not pin the
+    absolute transition; the perturbed branch must itself land on the
+    teacher. Returns (L_tangent, L_perturbed); both differentiable w.r.t.
+    the model (teacher under no_grad)."""
+    B, K, N, _ = ctx.shape
+    dev = ctx.device
+    v_t = ctx[:, -1, :, 0]
+    s_t = ctx[:, -1, :, 1]
+    r_t = ctx[:, -1, :, 2]
+    u_next = ctx[:, -1, :, 3]
+
+    with torch.no_grad():
+        dv = (torch.randn(v_t.shape, generator=gen) * sigma).to(dev)
+        v_pert = v_t + dv
+        r_un = r_t * float(cfg.refractory_period)
+        st_c = sim.simulate(u_next[:, None, :], state0=(v_t, s_t, r_un))[:, 0]
+        st_p = sim.simulate(u_next[:, None, :], state0=(v_pert, s_t, r_un))[:, 0]
+        d_teacher = st_p[..., 0] - st_c[..., 0]     # [B, N] membrane response
+
+    ctx_pert = ctx.clone()
+    ctx_pert[:, -1, :, 0] = v_t + dv
+    if use_ckpt:
+        out_c = torch.utils.checkpoint.checkpoint(model, ctx, use_reentrant=False)
+        out_p = torch.utils.checkpoint.checkpoint(model, ctx_pert, use_reentrant=False)
+    else:
+        out_c = model(ctx)
+        out_p = model(ctx_pert)
+    d_model = out_p["v"] - out_c["v"]
+    ltan = F.mse_loss(d_model, d_teacher)
+    # absolute perturbed-state teacher loss
+    lv = F.mse_loss(out_p["v"], st_p[..., 0])
+    ls = F.binary_cross_entropy_with_logits(out_p["s_logits"],
+                                            st_p[..., 1], pos_weight=pos_weight)
+    lr_ = F.mse_loss(out_p["r"], st_p[..., 2])
+    lpert = lv + ls + lr_
+    return ltan, lpert
+
+
+def tangent_sigma_sample(rc, gen: torch.Generator) -> float:
+    """Multi-scale sigma (spec §12): draw from rc.tangent_scales with
+    rc.tangent_probs; fall back to the single rc.tangent_sigma."""
+    scales = tuple(getattr(rc, "tangent_scales", ()) or ())
+    if not scales:
+        return float(rc.tangent_sigma)
+    probs = tuple(getattr(rc, "tangent_probs", (0.4, 0.4, 0.2)))
+    probs = (probs + (0.0,) * len(scales))[:len(scales)]
+    tot = sum(probs) or 1.0
+    r = torch.rand((), generator=gen).item() * tot
+    acc = 0.0
+    for s, p in zip(scales, probs):
+        acc += p
+        if r <= acc:
+            return float(s)
+    return float(scales[-1])

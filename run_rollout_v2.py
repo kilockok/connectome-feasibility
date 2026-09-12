@@ -1,13 +1,17 @@
-"""Phase-2 experiment-matrix orchestrator.
+"""Phase-2/3 experiment orchestrator (see PHASE2.md, run_rollout_v2.py).
 
-Runs the GNN A-G ablation (A = phase-1 checkpoint, eval-only), the surrogate
-sweep, transfers the winning recipe to the connectome transformer, and finally
-kicks off one unified rollout_eval pass.
+    python run_rollout_v2.py --scale full --model gnn --experiments B C D E F G
+    python run_rollout_v2.py --scale small --matrix v3 --model gnn_temporal \
+        --experiments D E F
+    python run_rollout_v2.py --scale full --model gnn --experiments G \
+        --surrogate-sweep          # best-experiment x {ste, sigmoid, fast_sigmoid}
+    python run_rollout_v2.py --scale small --matrix v3 --model gnn_temporal \
+        --experiments D E F --eval-only
 
-    python run_rollout_v2.py --scale full --model gnn --experiments A B C D E F G
-    python run_rollout_v2.py --scale full --model gnn --experiments G --surrogate-sweep
-    python run_rollout_v2.py --scale full --model connectome --experiments <winner>
-    python run_rollout_v2.py --scale full --model gnn --eval-only
+Each experiment runs as a SUBPROCESS (`rollout_train.py`) for GPU memory
+hygiene, sequentially. Afterwards one evaluation pass runs over all
+produced checkpoints: rollout_eval.py for matrix v2, temporal_eval.py for
+matrix v3. `--smoke` propagates to every subprocess.
 """
 from __future__ import annotations
 
@@ -16,91 +20,143 @@ import subprocess
 import sys
 from pathlib import Path
 
-from config import add_common_args, get_config
-from rollout_config import CHECKPOINT_DIR, ROLLOUT2_DIR, add_rollout_args
+from config import get_config, add_common_args
+from rollout_config import (EXPERIMENTS, EXPERIMENTS_V3, RolloutConfig,
+                            final_ckpt_path, phase1_ckpt_path, summary_path)
 
-ROOT = Path(__file__).resolve().parent
+MATRICES = {"v2": EXPERIMENTS, "v3": EXPERIMENTS_V3}
+SURROGATES = ("ste", "sigmoid", "fast_sigmoid")
 
 
-def _run(cmd: list[str]) -> int:
-    print(f"[run] {' '.join(cmd)}")
-    r = subprocess.run(cmd, cwd=ROOT)
-    return r.returncode
+def run(cmd: list[str], log_prefix: str) -> int:
+    print(f"\n=== [run] {' '.join(cmd)}")
+    t0 = __import__("time").time()
+    p = subprocess.run(cmd)
+    dt = __import__("time").time() - t0
+    print(f"=== [done:{p.returncode}] {log_prefix} ({dt / 60:.1f} min)")
+    return p.returncode
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=__doc__)
     add_common_args(parser)
-    add_rollout_args(parser)
+    parser.add_argument("--model", default="gnn",
+                        choices=["gnn", "connectome", "gnn_temporal",
+                                 "gnn_wide"])
+    parser.add_argument("--matrix", default="v2", choices=list(MATRICES))
     parser.add_argument("--experiments", nargs="*", default=None,
-                        help="subset of A-G (default: all)")
+                        help="letters within the matrix (v2: A-G, v3: D-F)")
+    parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--surrogate-sweep", action="store_true",
-                        help="run last listed experiment with all 3 surrogates")
+                        help="after the main runs: repeat the LAST listed "
+                             "experiment once per surrogate mode")
     parser.add_argument("--eval-only", action="store_true",
-                        help="skip training; run rollout_eval over existing finals")
+                        help="skip training, run only the unified eval pass")
+    parser.add_argument("--skip-eval", action="store_true")
+    # forwarded trainer options
+    parser.add_argument("--k-hist", type=int, default=None)
+    parser.add_argument("--t-layers", type=int, default=None)
+    parser.add_argument("--t-heads", type=int, default=None)
+    parser.add_argument("--pos", default=None, choices=["learned", "sincos"])
+    parser.add_argument("--causal", action="store_true")
+    parser.add_argument("--dropout", type=float, default=None)
+    parser.add_argument("--stages", default=None)
+    parser.add_argument("--tbptt", type=int, default=None)
+    parser.add_argument("--grad-ckpt", default=None,
+                        choices=["auto", "on", "off"])
+    parser.add_argument("--buffer-capacity", type=int, default=None)
     args = parser.parse_args()
+
     cfg = get_config(args.scale)
     if args.seed is not None:
         cfg.seed = args.seed
+    experiments = MATRICES[args.matrix]
+    exps = [e.upper() for e in (args.experiments or list(experiments))]
+    for e in exps:
+        if e not in experiments:
+            raise SystemExit(f"unknown experiment {e!r} for matrix "
+                             f"{args.matrix} (choices: {list(experiments)})")
 
-    exps = [e.upper() for e in (args.experiments or list("ABCDEFG"))]
-    base = [sys.executable, "rollout_train.py", "--model", args.model,
-            "--scale", args.scale]
-    if args.seed is not None:
-        base += ["--seed", str(args.seed)]
-    if getattr(args, "smoke", False):
-        base += ["--smoke"]
-    if getattr(args, "grad_ckpt", None):
-        base += ["--grad-ckpt", args.grad_ckpt]
-
-    trained_exps, extra_entries = [], []
+    def trainer_cmd(exp: str, extra: list[str]) -> list[str]:
+        cmd = [sys.executable, "rollout_train.py", "--scale", args.scale,
+               "--model", args.model, "--matrix", args.matrix,
+               "--experiment", exp]
+        if args.seed is not None:
+            cmd += ["--seed", str(args.seed)]
+        for flag, val in (("--k-hist", args.k_hist),
+                          ("--t-layers", args.t_layers),
+                          ("--t-heads", args.t_heads),
+                          ("--pos", args.pos),
+                          ("--dropout", args.dropout),
+                          ("--stages", args.stages),
+                          ("--tbptt", args.tbptt),
+                          ("--grad-ckpt", args.grad_ckpt),
+                          ("--buffer-capacity", args.buffer_capacity)):
+            if val is not None:
+                cmd += [flag, str(val)]
+        if args.causal:
+            cmd += ["--causal"]
+        if args.smoke:
+            cmd += ["--smoke"]
+        if args.device != "auto":
+            cmd += ["--device", args.device]
+        return cmd + extra
 
     if not args.eval_only:
-        sweep = []
+        for e in exps:
+            if experiments[e].get("eval_only"):
+                print(f"[skip] {e}: eval-only experiment")
+                continue
+            rc_ = RolloutConfig(base=cfg, experiment=e, model=args.model,
+                                scale=args.scale, version=args.matrix,
+                                **experiments[e])
+            p1 = phase1_ckpt_path(cfg, args.model)
+            if not p1.exists():
+                raise SystemExit(f"[fatal] phase-1 checkpoint missing: {p1}")
+            if final_ckpt_path(rc_).exists() and not args.smoke:
+                print(f"[skip] {e}: final checkpoint exists "
+                      f"({final_ckpt_path(rc_).name}); delete to retrain")
+                continue
+            code = run(trainer_cmd(e, []), f"{args.matrix}/{e}")
+            if code != 0:
+                raise SystemExit(f"experiment {e} failed (exit {code})")
         if args.surrogate_sweep:
-            sweep = ["ste", "sigmoid", "fast_sigmoid"]
-        for exp in exps:
-            if exp == "A":
-                continue                    # phase-1 checkpoint, eval-only
-            if sweep:
-                for sg in sweep:
-                    code = _run(base + ["--experiment", exp,
-                                        "--surrogate", sg])
-                    if code != 0:
-                        raise SystemExit(
-                            f"experiment {exp}/{sg} failed (exit {code})")
-                    extra_entries.append(
-                        (f"{exp}-{sg}",
-                         CHECKPOINT_DIR /
-                         f"ckpt_{args.model}_{args.scale}_rollout_v2_"
-                         f"{exp}_seed{cfg.seed}.pt"))
-                    # later sweep runs would overwrite the same final name;
-                    # stash each under a surrogate-specific copy
-                    dst = CHECKPOINT_DIR / \
-                        (f"ckpt_{args.model}_{args.scale}_rollout_v2_"
-                         f"{exp}-{sg}_seed{cfg.seed}.pt")
-                    src = CHECKPOINT_DIR / \
-                        (f"ckpt_{args.model}_{args.scale}_rollout_v2_"
-                         f"{exp}_seed{cfg.seed}.pt")
-                    if src.exists():
-                        dst.write_bytes(src.read_bytes())
-                    extra_entries[-1] = (f"{exp}-{sg}", dst)
-            else:
-                code = _run(base + ["--experiment", exp])
+            last = exps[-1]
+            for s in SURROGATES:
+                code = run(trainer_cmd(last, ["--surrogate", s]),
+                           f"{args.matrix}/{last}/surr={s}")
                 if code != 0:
-                    raise SystemExit(f"experiment {exp} failed (exit {code})")
-                trained_exps.append(exp)
+                    raise SystemExit(f"surrogate sweep {s} failed")
 
-    # ---- unified evaluation -------------------------------------------
-    eval_cmd = [sys.executable, "rollout_eval.py", "--scale", args.scale,
-                "--model", args.model, "--experiments"] + exps
-    for label, path in extra_entries:
+    if args.skip_eval:
+        return
+
+    # ---- unified eval over produced finals --------------------------------
+    entries = []
+    for e in exps:
+        rc_ = RolloutConfig(base=cfg, experiment=e, model=args.model,
+                            scale=args.scale, version=args.matrix,
+                            **experiments[e])
+        path = phase1_ckpt_path(cfg, args.model) \
+            if experiments[e].get("eval_only") else final_ckpt_path(rc_)
         if path.exists():
-            eval_cmd += ["--entry", f"{label}={path}"]
-    code = _run(eval_cmd)
-    if code != 0:
-        raise SystemExit(f"rollout_eval failed (exit {code})")
-    print(f"[done] all outputs in {ROLLOUT2_DIR}")
+            entries.append((e, path))
+        elif not experiments[e].get("eval_only"):
+            print(f"[eval] {e}: no final checkpoint, skipped")
+    if not entries:
+        print("[eval] nothing to evaluate")
+        return
+    if args.matrix == "v2":
+        cmd = [sys.executable, "rollout_eval.py", "--scale", args.scale] + \
+              [a for e, p in entries for a in ("--entry", f"{e}={p}")]
+    else:
+        cmd = [sys.executable, "temporal_eval.py", "--scale", args.scale] + \
+              [a for e, p in entries for a in ("--entry", f"{e}={p}")]
+    if args.seed is not None:
+        cmd += ["--seed", str(args.seed)]
+    if args.device != "auto":
+        cmd += ["--device", args.device]
+    run(cmd, f"eval/{args.matrix}")
 
 
 if __name__ == "__main__":

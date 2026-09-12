@@ -88,9 +88,64 @@ def _compose_straight_through(out: dict, cfg, threshold: float = 0.5):
     return v, sp, r
 
 
-def ckpt_tag(args) -> str:
-    return (f"_ablate-{args.graph_ablate}"
-            if getattr(args, "graph_ablate", "none") != "none" else "")
+def ckpt_tag(args, cfg) -> str:
+    """Checkpoint discriminating tag: graph ablation (phase-1), then phase-3
+    architecture variants (k_hist short of cfg.K, cfg.K override, gnn_wide
+    width/depth). Untagged == the canonical one-step checkpoint of that
+    model family (what rollout_config.phase1_ckpt_path looks up)."""
+    tag = (f"_ablate-{args.graph_ablate}"
+           if getattr(args, "graph_ablate", "none") != "none" else "")
+    k_hist = getattr(args, "k_hist", None)
+    if k_hist and k_hist != cfg.K:
+        tag += f"_k{k_hist}"
+    if getattr(args, "K_override", None):
+        tag += f"_K{args.K_override}"
+    if args.model == "gnn_wide" and getattr(args, "wide_kwargs", None):
+        wk = args.wide_kwargs
+        tag += f"_w{wk['d_model']}x{wk['gnn_layers']}"
+    return tag
+
+
+def build_train_model(args, cfg, conn, device):
+    """Phase-3 aware model construction. Returns (model, model_kwargs).
+
+    --model gnn_temporal: GNN per timestep + temporal Transformer
+        (--k-hist/--t-layers/--t-heads/--pos/--causal/--dropout).
+    --model gnn_wide: plain GNNBaseline with --d-model/--gnn-layers
+        overrides; --param-match gnn_temporal grid-searches the width/depth
+        whose parameter count matches the gnn_temporal of the current CLI
+        architecture args (the parameter-matched fairness control).
+    """
+    from models import build_model, match_gnn_wide, count_params
+    kwargs: dict = {}
+    if args.model == "gnn_temporal":
+        from models.gnn_temporal import gnn_temporal_kwargs
+        kwargs = gnn_temporal_kwargs(
+            cfg, k_hist=args.k_hist, t_layers=args.t_layers,
+            t_heads=args.t_heads, pos_type=args.pos,
+            causal=True if args.causal else None, dropout=args.dropout)
+    elif args.model == "gnn_wide":
+        if args.param_match == "gnn_temporal":
+            from models.gnn_temporal import gnn_temporal_kwargs
+            ref = build_model(
+                "gnn_temporal", cfg, conn, None,
+                gnn_temporal_kwargs(cfg, k_hist=args.k_hist,
+                                    t_layers=args.t_layers,
+                                    t_heads=args.t_heads, pos_type=args.pos,
+                                    causal=True if args.causal else None,
+                                    dropout=args.dropout))
+            target = count_params(ref)
+            del ref
+            kwargs = match_gnn_wide(cfg, conn, target)
+        else:
+            kwargs = {}
+            if args.d_model is not None:
+                kwargs["d_model"] = args.d_model
+            if args.gnn_layers is not None:
+                kwargs["gnn_layers"] = args.gnn_layers
+        args.wide_kwargs = kwargs
+    model = build_model(args.model, cfg, conn, device, kwargs)
+    return model, kwargs
 
 
 def finetune_unroll(model, args, cfg, sim, device, pos_weight, ckpt_path):
@@ -103,7 +158,7 @@ def finetune_unroll(model, args, cfg, sim, device, pos_weight, ckpt_path):
     """
     base_path = (CHECKPOINT_DIR /
                  f"ckpt_{args.model}_{args.scale}"
-                 f"{ckpt_tag(args)}_seed{cfg.seed}.pt")
+                 f"{ckpt_tag(args, cfg)}_seed{cfg.seed}.pt")
     blob = torch.load(base_path, map_location="cpu", weights_only=False)
     model.load_state_dict(blob["state_dict"])
     print(f"[unroll] initialised from phase-1 checkpoint "
@@ -171,10 +226,11 @@ def finetune_unroll(model, args, cfg, sim, device, pos_weight, ckpt_path):
             best_val = val["loss"]
             torch.save({"model": args.model, "scale": args.scale,
                         "seed": cfg.seed, "epoch": epoch, "unroll": U,
-                        "val_loss": best_val,
+                        "val_loss": best_val, "K": cfg.K,
+                        "model_kwargs": getattr(args, "model_kwargs", {}),
                         "state_dict": model.state_dict()}, ckpt_path)
     hist_path = RESULTS_DIR / (f"history_{args.model}_{args.scale}"
-                               f"{ckpt_tag(args)}_ms.csv")
+                               f"{ckpt_tag(args, cfg)}_ms.csv")
     with open(hist_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=list(history[0].keys()))
         writer.writeheader()
@@ -186,7 +242,8 @@ def main():
     parser = argparse.ArgumentParser()
     add_common_args(parser)
     parser.add_argument("--model", required=True,
-                        choices=["gru", "transformer", "connectome", "gnn"])
+                        choices=["gru", "transformer", "connectome", "gnn",
+                                 "gnn_temporal", "gnn_wide"])
     parser.add_argument("--epochs", type=int, default=None)
     parser.add_argument("--unroll", type=int, default=0,
                         help="phase-2: unrolled multi-step fine-tune steps (0=off)")
@@ -200,6 +257,35 @@ def main():
                         help="sanity control: corrupt the graph seen by the "
                              "MODEL only; the simulator always uses the true "
                              "connectome")
+    # ---- phase-3 architecture options ----
+    parser.add_argument("--k-hist", type=int, default=None,
+                        help="gnn_temporal: history steps consumed "
+                             "(default: cfg.K; shorter truncates the window)")
+    parser.add_argument("--K", type=int, default=None, dest="K_override",
+                        help="override cfg.K (window length) for this run; "
+                             "checkpoint is tagged _K<K>")
+    parser.add_argument("--t-layers", type=int, default=None,
+                        help="gnn_temporal temporal transformer layers "
+                             "(default 2)")
+    parser.add_argument("--t-heads", type=int, default=None,
+                        help="gnn_temporal temporal attention heads "
+                             "(default 4)")
+    parser.add_argument("--pos", default=None, choices=["learned", "sincos"],
+                        help="gnn_temporal temporal positional encoding "
+                             "(default learned)")
+    parser.add_argument("--causal", action="store_true",
+                        help="gnn_temporal: causal temporal attention "
+                             "(default: full-window)")
+    parser.add_argument("--dropout", type=float, default=None)
+    parser.add_argument("--d-model", type=int, default=None,
+                        help="gnn_wide: d_model override")
+    parser.add_argument("--gnn-layers", type=int, default=None,
+                        help="gnn_wide: message-round override")
+    parser.add_argument("--param-match", default=None,
+                        choices=["gnn_temporal"],
+                        help="gnn_wide: grid-search width/depth to match the "
+                             "parameter count of this reference architecture "
+                             "built with the current CLI arch args")
     args = parser.parse_args()
 
     cfg = get_config(args.scale)
@@ -207,6 +293,11 @@ def main():
         cfg.seed = args.seed
     if args.epochs is not None:
         cfg.epochs = args.epochs
+    if args.K_override is not None:
+        if args.K_override < 4:
+            raise SystemExit("--K must be >= 4")
+        cfg.K = args.K_override
+        print(f"[setup] cfg.K overridden to {cfg.K} (window ablation)")
 
     torch.manual_seed(cfg.seed)
     device = get_device(override=args.device)
@@ -223,13 +314,14 @@ def main():
               f"(simulator uses the TRUE connectome)")
     else:
         model_conn = conn
-    model = build_model(args.model, cfg, model_conn, device)
+    model, model_kwargs = build_train_model(args, cfg, model_conn, device)
+    args.model_kwargs = model_kwargs
     pos_weight = torch.tensor(cfg.spike_pos_weight, device=device)
 
     if args.unroll > 0:
         ms_path = (CHECKPOINT_DIR /
                    f"ckpt_{args.model}_{args.scale}"
-                   f"{ckpt_tag(args)}_ms_seed{cfg.seed}.pt")
+                   f"{ckpt_tag(args, cfg)}_ms_seed{cfg.seed}.pt")
         finetune_unroll(model, args, cfg, sim, device, pos_weight, ms_path)
         return
 
@@ -247,9 +339,9 @@ def main():
                                     # (amortises the 256-step python loop)
     ckpt_path = (CHECKPOINT_DIR /
                  f"ckpt_{args.model}_{args.scale}"
-                 f"{ckpt_tag(args)}_seed{cfg.seed}.pt")
+                 f"{ckpt_tag(args, cfg)}_seed{cfg.seed}.pt")
     hist_path = (RESULTS_DIR /
-                 f"history_{args.model}_{args.scale}{ckpt_tag(args)}.csv")
+                 f"history_{args.model}_{args.scale}{ckpt_tag(args, cfg)}.csv")
 
     best_val = float("inf")
     bad_epochs = 0
@@ -299,7 +391,8 @@ def main():
             bad_epochs = 0
             torch.save({"model": args.model, "scale": args.scale,
                         "seed": cfg.seed, "epoch": epoch,
-                        "val_loss": best_val,
+                        "val_loss": best_val, "K": cfg.K,
+                        "model_kwargs": getattr(args, "model_kwargs", {}),
                         "state_dict": model.state_dict()}, ckpt_path)
         else:
             bad_epochs += 1
