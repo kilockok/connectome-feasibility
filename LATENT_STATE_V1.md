@@ -111,3 +111,4 @@ skipped per protocol. One operational incident: the seed-1236 hidden run was
 interrupted mid-epoch (session drop); resumable last.pt checkpoints allowed
 a clean resume with no retraining. Results synced back to the local
 results/latent_state_v1 mirror; checkpoints remain on the remote host.
+

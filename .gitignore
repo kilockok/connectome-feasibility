@@ -4,3 +4,5 @@ results/
 logs/
 logs_*.txt
 *.log
+
+.venv-cuda/
