@@ -32,6 +32,10 @@ class LatentV2Config:
     dt_z: float = 1.0
     z_clip: float = 4.0     # numerical safety bound; essentially never active when damped
     burn_in: int = 256      # oscillator burn-in so z starts near its stationary law
+    random_init: bool = False   # deterministic-ablation mode: randomized initial z,
+                                # then noise-free evolution (use with sigma=0)
+    init_std_pos: float = 0.77  # ~ stationary std of the stochastic teacher
+    init_std_vel: float = 0.046
 
     def __post_init__(self):
         if not 0 <= self.alpha < 1.5 or not 0 < self.beta < 1 or self.omega <= 0 \
@@ -65,8 +69,12 @@ class HiddenStateLIFSimulatorV2(LIFSimulator):
         lc, c = self.latent, self.cfg
         zg = torch.Generator().manual_seed(int(seed) + 91_000_000)
         noise = torch.randn(c.T + lc.burn_in, generator=zg)
-        z = torch.zeros(2)
-        for t in range(lc.burn_in):
+        if lc.random_init:
+            z = torch.tensor([torch.randn((), generator=zg) * lc.init_std_pos,
+                              torch.randn((), generator=zg) * lc.init_std_vel])
+        else:
+            z = torch.zeros(2)
+        for t in range(0 if lc.random_init else lc.burn_in):
             z = self.z_step(z, noise[t])
         path = []
         for t in range(c.T):
