@@ -73,7 +73,10 @@ corrector's predicted fingerprint equals the base_pre formula's (transfer
 (delay recovery d=0..32, burst structure, edge-local vs neuron-global
 preconditioning, history load). Teacher fingerprints classify family:
 0.865 (seen) / 0.589 (held-out params, AUROC 0.909) / 0.719 (extrapolated,
-AUROC 0.872) - clearly above every passive channel. But the same
+AUROC 0.872) - clearly above every passive channel. Per-family held-out
+confusion (testB): gain 0.95 / adapt 0.72 / stp 0.53 correct - the GAIN
+fingerprint generalizes best across parameters; STP is hardest
+(44% confused as gain). But the same
 fingerprint computed from base_pre predictions (no learning, no mechanism)
 matches the corrector's: the fingerprint's discriminative content is
 carried by observable trajectory history, not by learned corrections.
