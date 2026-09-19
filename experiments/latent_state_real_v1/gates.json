@@ -1,0 +1,27 @@
+{
+  "date": "2026-09-19",
+  "D0_data_gate": {
+    "verdict": "PASS",
+    "evidence": "SC-FC real activity data verified: 20 sessions x 37 common central-brain regions, fs=1.2 Hz (authors pipeline constant), ~1700-3900 usable frames after the authors trim map, NaN-free, flatline-free, same-parcellation directed T-bar structural matrix (99.9% dense off-diagonal). dataset_validation.json."
+  },
+  "G1_real_structure_beyond_baselines": {
+    "verdict": "FAIL",
+    "evidence": "Test one-step RMSE: M1 0.761+-0.002, M2 0.729+-0.001 vs AR(5) 0.7261 - no learned model beats the linear AR baseline (5/5 seeds M1 worse than AR5); real temporal structure exists (AR5 0.726 << persistence 0.875) but is linear-AR class at this granularity."
+  },
+  "G2_connectome_incremental_value": {
+    "verdict": "FAIL",
+    "evidence": "M2-real 0.7293 == M2-shuffled-edges 0.7299 == M2-shuffled-weights 0.7300 (test); graph mixing helps vs identity (0.7479) but identically for fake graphs - no structure-specific contribution (frozen rule: no connectome claim without real>fake)."
+  },
+  "G3_latent_independent_gain": {
+    "verdict": "FAIL",
+    "evidence": "M3 0.7424+-0.005 worse than M2 0.7293+-0.001 on 5/5 seeds; M3 == M3-nolatent (0.7413); z-shuffle +0.007 (tiny real latent signal - conclusion A (latent carries info) descriptively supported, conclusion B (independent predictive gain) not)."
+  },
+  "G4_autonomous_statistics": {
+    "verdict": "NOT_SUPPORTED",
+    "evidence": "200-frame autonomous rollouts stable (0 blowups) but amplitude collapses to 6-9% of real (mean reversion); FC corr <= 0.21; ACF/spectrum closest for AR(5). rollout_stats.csv."
+  },
+  "G5_hygiene": {
+    "verdict": "PASS",
+    "evidence": "test_real.py: date-partitioned splits, window isolation, train-only normalization (val mean |0.039| not forced to 0), fake-graph statistics preserved, causality assertions, 95 checkpoint/config matches."
+  }
+}

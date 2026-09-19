@@ -1,0 +1,255 @@
+{
+ "created": "2026-09-19 18:04:17 \u4e2d\u56fd\u6807\u51c6\u65f6\u95f4",
+ "primary_source": {
+  "name": "Drosophila central brain connectivity (SC-FC, Turner/Mann/Clandinin)",
+  "doi": "10.6084/m9.figshare.13349282",
+  "version": "v3 (2023-05-30)",
+  "url": "https://figshare.com/articles/dataset/Drosophila_central_brain_connectivity/13349282",
+  "license": "MIT",
+  "analysis_code": "https://github.com/mhturner/SC-FC (master)"
+ },
+ "files": {
+  "data/body_ids.csv": {
+   "bytes": 523725,
+   "sha256": "8c8ddd72851f1a28d18d6ae243e58de287c0284e843481e1bdd9a623a6541089"
+  },
+  "data/CorrelationMatrix_branson.csv": {
+   "bytes": 1718373,
+   "sha256": "178f52fd7e7b954d76b9aea727bbc92922824cf9b33af2ab750a377a2d7f8505"
+  },
+  "data/data/branson_responses/branson_2017-10-26_1.pkl": {
+   "bytes": 11238320,
+   "sha256": "0c61d4111aaa470f4c9dc1a0cdb59ed8bceb54c466afacdec5ae6e3d87ca1471"
+  },
+  "data/data/branson_responses/branson_2017-10-30_1.pkl": {
+   "bytes": 10982192,
+   "sha256": "1a77dfb599cb8264359be4a64b1f503c3e3d65ef404255ec60f4720efe74c312"
+  },
+  "data/data/branson_responses/branson_2017-10-30_2.pkl": {
+   "bytes": 11270336,
+   "sha256": "d79edd1c758f251d683469e21ef2757820a81aeb1f0ec14c2eee0aa724124eb0"
+  },
+  "data/data/branson_responses/branson_2017-11-08_1.pkl": {
+   "bytes": 22534336,
+   "sha256": "ae8f44d7f7b9bd4b205cb318a688b2fdb0a681bd3ab8362870002453a1d38194"
+  },
+  "data/data/branson_responses/branson_2017-11-08_2.pkl": {
+   "bytes": 22534336,
+   "sha256": "329f9f722319584ecc2c771924ace9439eda12b1acbbf45a33f6d9c11043d090"
+  },
+  "data/data/branson_responses/branson_2017-11-16_1.pkl": {
+   "bytes": 11270336,
+   "sha256": "c436281c895f94e100e8a034cbfff45a8592703c5f1482cf2713d1613e7352a1"
+  },
+  "data/data/branson_responses/branson_2018-10-19_1.pkl": {
+   "bytes": 11286344,
+   "sha256": "fc005424ed2fac0344873bc91be807a1875359c7289711c0ef7a848e58b962d3"
+  },
+  "data/data/branson_responses/branson_2018-10-19_2.pkl": {
+   "bytes": 11286344,
+   "sha256": "159e0d3bbfdd09d631ef39e0154228f83207d6346081ccd12e293503f7f8daa0"
+  },
+  "data/data/branson_responses/branson_2018-10-20_1.pkl": {
+   "bytes": 11286344,
+   "sha256": "d71fae56ed6f45492e7bcc54e179766cafa80c3664c1c92860a26daf7b9471a5"
+  },
+  "data/data/branson_responses/branson_2018-10-31_1.pkl": {
+   "bytes": 11270336,
+   "sha256": "7e52af45ce393514dcdddcba2f4db85c0daea2e668d318aef2dd82c027915593"
+  },
+  "data/data/branson_responses/branson_2018-11-03_2.pkl": {
+   "bytes": 11286344,
+   "sha256": "eb715734ddfb71991deea247ea3037e57d80c6f92713b83abf5c8ac5fe9a1ef4"
+  },
+  "data/data/branson_responses/branson_2018-11-03_3.pkl": {
+   "bytes": 11142272,
+   "sha256": "a5ff3711af95440f50d6f7113fcca7015d6693b15bfcb9378c5b22431f562561"
+  },
+  "data/data/branson_responses/branson_2018-11-03_4.pkl": {
+   "bytes": 11014208,
+   "sha256": "59288df00329c1a8e31bb2b52f53c9fd71f19ea9750063798010ff1750e2e927"
+  },
+  "data/data/branson_responses/branson_2018-11-03_5.pkl": {
+   "bytes": 11110256,
+   "sha256": "7c0e6445fde33d35d2dafcd03fd2b2b12c280c2905c381b3c4f31869875a7002"
+  },
+  "data/data/branson_responses/branson_2018-12-12_2.pkl": {
+   "bytes": 11238320,
+   "sha256": "744dd7f097df4779935a8229552482cf3f95e0b9abceefef3bcf11abac0ea0db"
+  },
+  "data/data/branson_responses/branson_2018-12-12_3.pkl": {
+   "bytes": 9685544,
+   "sha256": "867d459d17b54541dab704fbbfc8d589d6700c7dcd0786139a15c2795b96e393"
+  },
+  "data/data/branson_responses/branson_2018-12-12_4.pkl": {
+   "bytes": 10886144,
+   "sha256": "89118f36b78be2ec250ed690a4a7f15a1f8879cb53d3ffc619dbf2c489d0b174"
+  },
+  "data/data/branson_responses/branson_2018-12-14_1.pkl": {
+   "bytes": 10678040,
+   "sha256": "c1797f90f2054a75f90d92f9d0228a586751cf49ff0a67d226dcfb57269521fb"
+  },
+  "data/data/branson_responses/branson_2018-12-14_2.pkl": {
+   "bytes": 11206304,
+   "sha256": "debb7498efb1451a437a537b34db3a1b10a9986173a32ced8ae503cfe4ff8cc7"
+  },
+  "data/data/branson_responses/branson_2018-12-14_3.pkl": {
+   "bytes": 11238320,
+   "sha256": "8430e12182a9c02c67bea8615fac6084a69deba8b72df0cce1a0fc8a5c592161"
+  },
+  "data/data/connectome_connectivity/body_ids_20210114.npy": {
+   "bytes": 113034,
+   "sha256": "a4f8cc0a2774b2a72ee022c5999152a32dcd15cf3d42fa032949c1a14e8dd843"
+  },
+  "data/data/connectome_connectivity/Connectivity_computed_20210114.pkl": {
+   "bytes": 11461,
+   "sha256": "9f77f133a1b685bfc95fda4e4aefe08bc74e8d57fcb111e90f1795bbe0486e76"
+  },
+  "data/data/connectome_connectivity/MediumConnections_computed_20210114.pkl": {
+   "bytes": 11461,
+   "sha256": "267646db6b28f54ee439a4d70d793317398cf775eb361748234c2f43e0936082"
+  },
+  "data/data/connectome_connectivity/StrongConnections_computed_20210114.pkl": {
+   "bytes": 11461,
+   "sha256": "2fbc16d189896db6338ea7ba1c93a8c650ef587d726e772fdfeaf8e6b6c05ae8"
+  },
+  "data/data/connectome_connectivity/TBars_computed_20210114.pkl": {
+   "bytes": 11461,
+   "sha256": "a2566f2fa765bda8213342757e4db51df8b6364359f05b8f23e586c3b0e92f7b"
+  },
+  "data/data/connectome_connectivity/WeakConnections_computed_20210114.pkl": {
+   "bytes": 11461,
+   "sha256": "c3f2d4934a49d36bf00d0619ca0fc05e75caac758e0d43f71fbdc0336d821524"
+  },
+  "data/data/connectome_connectivity/WeightedSynapseNumber_computed_20210114.pkl": {
+   "bytes": 11461,
+   "sha256": "7add3a14dd39d9211db4a2cb9c5a056afe138b1808fb8a84682b2940d2b31df6"
+  },
+  "data/data/hemi_2_atlas/JFRC2_branson_cellcount_matrix.csv": {
+   "bytes": 2093138,
+   "sha256": "cb98d956953e8aaf6df9246d0f216e566f103207d96df4ef6e776b9e535bb0ea"
+  },
+  "data/data/hemi_2_atlas/JFRC2_ito_cellcount_matrix.csv": {
+   "bytes": 18900,
+   "sha256": "8a06ca1f83b367543639684e279d2e327715fffa1f86d12a6b09d0faf8bddbb5"
+  },
+  "data/data/hemi_2_atlas/JRC2018_branson_tbar_matrix.csv": {
+   "bytes": 2275530,
+   "sha256": "a11a10770c860c36d03b354b89a29c83d5726e34d85c1213236a1b756f8ae0d2"
+  },
+  "data/data/hemi_2_atlas/JRC2018_ito_cellcount_matrix.csv": {
+   "bytes": 20075,
+   "sha256": "485f53408aae968cff52d267e8ea4b6e99a73f9420792339ce63586589ea1c37"
+  },
+  "data/data/hemi_2_atlas/JRC2018_ito_tbar_matrix.csv": {
+   "bytes": 24741,
+   "sha256": "93a9515ad427d12424201985dcf1e493c3e53eec18821c61dac8832f2f996188"
+  },
+  "data/data/ito_68_atlas/Original_Index_panda_full.csv": {
+   "bytes": 1167,
+   "sha256": "ab3faa3ec4ff3f12b3e526e71b91273c2fdb7deea095fd9f68ba5c6e42c8a254"
+  },
+  "data/data/ito_responses/func_volreg_2018-11-03_5_meanbrain.nii": {
+   "bytes": 8913248,
+   "sha256": "aa41c217674825a21ea3c9e2fca108fd3e6ff67782710250dd41a85f41f5c9c5"
+  },
+  "data/data/ito_responses/ito_2017-10-26_1.pkl": {
+   "bytes": 1201302,
+   "sha256": "bea786d98e19dc68b6e2af2e592b73ba041d3aac283690709b780f5cb932e079"
+  },
+  "data/data/ito_responses/ito_2017-10-30_1.pkl": {
+   "bytes": 1153278,
+   "sha256": "fa1fd5d5fc38f8b628fb99857a6667e4a783d8b79708d5bd75114b10c3781e31"
+  },
+  "data/data/ito_responses/ito_2017-10-30_2.pkl": {
+   "bytes": 1201302,
+   "sha256": "780c74cc05049a5f4eeabe28ecd22450187c57cf93e245fa5806b2cda945e1f9"
+  },
+  "data/data/ito_responses/ito_2017-11-08_1.pkl": {
+   "bytes": 2401302,
+   "sha256": "d01fe16c65d331006ba619e2213cd0c0ebb4d7c109a1afbe9e51c5360991f3ce"
+  },
+  "data/data/ito_responses/ito_2017-11-08_2.pkl": {
+   "bytes": 2401302,
+   "sha256": "7ca780d7d1850ffb88e110ad3cbb3e991277f1beab366beb3b67d54a299af3dd"
+  },
+  "data/data/ito_responses/ito_2017-11-16_1.pkl": {
+   "bytes": 1201302,
+   "sha256": "398a2b70ab4219f08dc9db6113cb1c21dbb544f5e507f071201e49938a05c441"
+  },
+  "data/data/ito_responses/ito_2018-10-19_1.pkl": {
+   "bytes": 1201302,
+   "sha256": "0698fd0f9849f611bcf9ccacbf0197bd9b0eecc4688dddbc86f7b55c8d61b281"
+  },
+  "data/data/ito_responses/ito_2018-10-19_2.pkl": {
+   "bytes": 1201302,
+   "sha256": "082de20617ffda22bd407ea2688b82e4d3d107940c97415415916d97323a88c6"
+  },
+  "data/data/ito_responses/ito_2018-10-20_1.pkl": {
+   "bytes": 1201302,
+   "sha256": "a86c909086a75dd0355bacd9abf0f9ef1220ba4dd77ac23589f507e055324dd0"
+  },
+  "data/data/ito_responses/ito_2018-10-31_1.pkl": {
+   "bytes": 1201302,
+   "sha256": "4d7147608913c8b1075e5a9034710e36aa36d002dd8eb53dda0c3f8bd841e394"
+  },
+  "data/data/ito_responses/ito_2018-11-03_2.pkl": {
+   "bytes": 1201302,
+   "sha256": "67ccf05a92ea85c4240a6506f80a9dfdecbfcda41e2b107afffcb257eef270d6"
+  },
+  "data/data/ito_responses/ito_2018-11-03_3.pkl": {
+   "bytes": 1185294,
+   "sha256": "7966a2c9b30b7d9182e4c0b942ac0ffb3d917db8464124e03dc0e504c071680e"
+  },
+  "data/data/ito_responses/ito_2018-11-03_4.pkl": {
+   "bytes": 1185294,
+   "sha256": "c0841fa0aac825d2647e90115379cbb4a4fd0556b8d3ab93c6175902c6e6e103"
+  },
+  "data/data/ito_responses/ito_2018-11-03_5.pkl": {
+   "bytes": 1185294,
+   "sha256": "eafe5c7477e1715e44420aeba96be55493811d8d6007e97bc1eb825ee5011087"
+  },
+  "data/data/ito_responses/ito_2018-12-12_2.pkl": {
+   "bytes": 1201302,
+   "sha256": "a132fbbd560030725ef372e220a110d4c9f7075a7300fc86451a990e0df8f3b6"
+  },
+  "data/data/ito_responses/ito_2018-12-12_3.pkl": {
+   "bytes": 1185294,
+   "sha256": "e2e6a78b53fa4d9754847b0f888f3b8f0f091fbb223331bb6cf8912a0e200e18"
+  },
+  "data/data/ito_responses/ito_2018-12-12_4.pkl": {
+   "bytes": 1185294,
+   "sha256": "86c974d42b42be91716bcd14a0024d7d0ed884070ddb80126f85dfdf08a414fd"
+  },
+  "data/data/ito_responses/ito_2018-12-14_1.pkl": {
+   "bytes": 1201302,
+   "sha256": "0a4ad757b3efeb00e15bac80e1be6b437a6496b9c94ddbb25a36c16b39a79856"
+  },
+  "data/data/ito_responses/ito_2018-12-14_2.pkl": {
+   "bytes": 1201302,
+   "sha256": "bd04b39c67b8f8ae3124907158d0abfbfd19a1ca1b541d039f89015f2b6f7a0a"
+  },
+  "data/data/ito_responses/ito_2018-12-14_3.pkl": {
+   "bytes": 1201302,
+   "sha256": "daf4fcb48e167b4f6e3ce030e68baf598b000496406958826fe07a0074da81e2"
+  },
+  "data/data/ito_responses/vfb_68_2018-11-03_5.nii.gz": {
+   "bytes": 56942,
+   "sha256": "76c40e93057fb212beb13e7831a0b1c6717fc02c5c635d91dab51d0ab19718c8"
+  },
+  "data/data_TurnerMannClandinin.tar.gz": {
+   "bytes": 245677983,
+   "sha256": "b6b0ea42da2d728e76ff3c646b56e7d32ecf0fcabb63eba585725cf1f0835f77"
+  },
+  "data/StructuralMatrix_branson.csv": {
+   "bytes": 422172,
+   "sha256": "5f8ee7dd8c1bc9b8560f52fbd6a3475788b37cf64414556c32f56a8903a3b945"
+  }
+ },
+ "zenodo_blocked": [
+  "8166598",
+  "21821328",
+  "18675613"
+ ],
+ "notes": "Zenodo API+web returned HTTP 403 for all three records from this network on 2026-09-19; recorded as access failure, no substitution made."
+}

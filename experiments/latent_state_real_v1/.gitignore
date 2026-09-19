@@ -1,0 +1,9 @@
+data/
+results_real/checkpoints/
+results_real/rollout_packs.npz
+data_real.pt
+__pycache__/
+*.log
+scfc_src_*
+_fix*.py
+_an_real.py

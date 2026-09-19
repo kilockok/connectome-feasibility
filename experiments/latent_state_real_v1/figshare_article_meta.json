@@ -1,0 +1,191 @@
+{
+ "files": [
+  {
+   "id": 26356327,
+   "name": "data_TurnerMannClandinin.tar.gz",
+   "size": 245677983,
+   "is_link_only": false,
+   "download_url": "https://ndownloader.figshare.com/files/26356327",
+   "supplied_md5": "2018bcd08fbc3c85626dd54ff6c3d17f",
+   "computed_md5": "2018bcd08fbc3c85626dd54ff6c3d17f",
+   "mimetype": "application/x-gzip"
+  },
+  {
+   "id": 26365543,
+   "name": "registration.xform.zip",
+   "size": 3626106,
+   "is_link_only": false,
+   "download_url": "https://ndownloader.figshare.com/files/26365543",
+   "supplied_md5": "c44a55bcd219b0e0bfd6d6e6e2ad2424",
+   "computed_md5": "c44a55bcd219b0e0bfd6d6e6e2ad2424",
+   "mimetype": "application/zip"
+  },
+  {
+   "id": 26568674,
+   "name": "body_ids.csv",
+   "size": 523725,
+   "is_link_only": false,
+   "download_url": "https://ndownloader.figshare.com/files/26568674",
+   "supplied_md5": "dbe4ea44034e600a253842baa0376ef5",
+   "computed_md5": "dbe4ea44034e600a253842baa0376ef5",
+   "mimetype": "text/plain"
+  },
+  {
+   "id": 26568677,
+   "name": "CorrelationMatrix_branson.csv",
+   "size": 1718373,
+   "is_link_only": false,
+   "download_url": "https://ndownloader.figshare.com/files/26568677",
+   "supplied_md5": "7d8afcd8cb4984002c966f144e5867b5",
+   "computed_md5": "7d8afcd8cb4984002c966f144e5867b5",
+   "mimetype": "text/plain"
+  },
+  {
+   "id": 26568680,
+   "name": "StructuralMatrix_branson.csv",
+   "size": 422172,
+   "is_link_only": false,
+   "download_url": "https://ndownloader.figshare.com/files/26568680",
+   "supplied_md5": "11bf558ae451dd8d04d5fe56161aff32",
+   "computed_md5": "11bf558ae451dd8d04d5fe56161aff32",
+   "mimetype": "text/plain"
+  }
+ ],
+ "folder_structure": {},
+ "authors": [
+  {
+   "id": 9745499,
+   "full_name": "Max Turner",
+   "first_name": "Max",
+   "last_name": "Turner",
+   "is_active": true,
+   "url_name": "Max_Turner",
+   "orcid_id": ""
+  }
+ ],
+ "custom_fields": [],
+ "figshare_url": "https://figshare.com/articles/dataset/Drosophila_central_brain_connectivity/13349282",
+ "download_disabled": false,
+ "description": "<div>See https://github.com/mhturner/SC-FC for analysis code and figure generation using this dataset<br></div><div><br></div><div>-StructuralMatrix_branson.csv and CorrelationMatrix_Branson.csv are the fine-grained Branson segmentation based structural and functional connectivity matrices shown in Fig. S3.</div><div><br></div><div>-body_ids.csv is the list of unique body ID numbers in the Hemibrain connectome that were used to compute structural connectivity.<br></div><div><br></div><div><u>data_TurnerMannClandinin</u>:<br></div><div>Compressed directory containing these subdirectories (in <b>bold</b>):</div><div><b>-atlas_data</b> contains original Ito and Branson brain atlas/segmentation files</div><div><br><b></b></div><div><b>-ito_68_atlas</b> & <b>branson_999_atlas</b> each contain .nii.gz image files containing the registered brain atlas mask for each fly. The mask numbers correspond to the regions as in Original_Index_panda_full.csv and atlas_roi_values<br></div><div><br></div><div><b>-ito_responses</b> & <b>branson_responses</b> each contain pandas dataframes, one for each fly, \ndescribing raw fluorescence responses for each brain region in that atlas. The \nsampling rate is 1.2 Hz.</div><div><br></div><div>-<b>connectome_connectivity</b> contains computed pandas dataframe files for various structural connectivity metrics, for the regions included in the main paper analysis</div><div><br></div><div>-<b>hemi_2_atlas</b> contains results of structural connectivity computations from R code included in the corresponding GitHub repository.<br></div><div><br></div><div>-<b>subsample</b> contains numpy data the result of the region subsampling analysis</div><div><br></div><div>-<b>template_brains</b> contains template brain files in the original (JFRC2) brain template space as well as the same atlases transformed to JRC2018 space (in both .tif and .nii.gz format)</div><div><br></div><div><u>registration.xform.xip</u></div><div>Transform file (CMTK format) to convert from JFRC2 template brain space, where the Ito atlas and Branson segmentation are, to JRC2018 template brain space<br><u></u></div><div><br></div>",
+ "funding": "F32-MH118707",
+ "funding_list": [
+  {
+   "id": 19497023,
+   "title": "F32-MH118707",
+   "grant_code": "",
+   "funder_name": null,
+   "is_user_defined": 1
+  }
+ ],
+ "version": 3,
+ "status": "public",
+ "size": 251968359,
+ "created_date": "2021-02-23T01:07:49Z",
+ "modified_date": "2023-05-30T19:10:36Z",
+ "is_public": true,
+ "is_confidential": false,
+ "is_metadata_record": false,
+ "confidential_reason": "",
+ "metadata_reason": "",
+ "license": {
+  "value": 3,
+  "name": "MIT",
+  "url": "https://opensource.org/licenses/MIT"
+ },
+ "tags": [
+  "Drosophila",
+  "Functional connectivity",
+  "Structural connectivity",
+  "Connectome",
+  "Neuroscience",
+  "Animal Neurobiology",
+  "Invertebrate Biology",
+  "Computational  Biology"
+ ],
+ "keywords": [
+  "Drosophila",
+  "Functional connectivity",
+  "Structural connectivity",
+  "Connectome",
+  "Neuroscience",
+  "Animal Neurobiology",
+  "Invertebrate Biology",
+  "Computational  Biology"
+ ],
+ "categories": [
+  {
+   "id": 24748,
+   "title": "Neurosciences not elsewhere classified",
+   "parent_id": 24724,
+   "path": "/24457/24724/24748",
+   "source_id": "320999",
+   "taxonomy_id": 100
+  },
+  {
+   "id": 24415,
+   "title": "Animal neurobiology",
+   "parent_id": 24397,
+   "path": "/24130/24397/24415",
+   "source_id": "310906",
+   "taxonomy_id": 100
+  },
+  {
+   "id": 24436,
+   "title": "Invertebrate biology",
+   "parent_id": 24397,
+   "path": "/24130/24397/24436",
+   "source_id": "310913",
+   "taxonomy_id": 100
+  },
+  {
+   "id": 24208,
+   "title": "Bioinformatics and computational biology not elsewhere classified",
+   "parent_id": 24181,
+   "path": "/24130/24181/24208",
+   "source_id": "310299",
+   "taxonomy_id": 100
+  }
+ ],
+ "references": [
+  "https://github.com/mhturner/SC-FC"
+ ],
+ "has_linked_file": false,
+ "citation": "Turner, Max (2020). Drosophila central brain connectivity. figshare. Dataset. https://doi.org/10.6084/m9.figshare.13349282.v3",
+ "related_materials": [
+  {
+   "id": 4441331,
+   "identifier": "https://github.com/mhturner/SC-FC",
+   "title": "",
+   "relation": "References",
+   "identifier_type": "URL",
+   "is_linkout": false,
+   "link": "https://github.com/mhturner/SC-FC"
+  }
+ ],
+ "is_embargoed": false,
+ "embargo_date": null,
+ "embargo_type": "file",
+ "embargo_title": "",
+ "embargo_reason": "",
+ "embargo_options": [],
+ "id": 13349282,
+ "title": "Drosophila central brain connectivity",
+ "doi": "10.6084/m9.figshare.13349282.v3",
+ "handle": "",
+ "url": "https://api.figshare.com/v2/articles/13349282",
+ "published_date": "2021-02-23T01:07:49Z",
+ "thumb": "",
+ "defined_type": 3,
+ "defined_type_name": "dataset",
+ "group_id": null,
+ "url_private_api": "https://api.figshare.com/v2/account/articles/13349282",
+ "url_public_api": "https://api.figshare.com/v2/articles/13349282",
+ "url_private_html": "https://figshare.com/account/articles/13349282",
+ "url_public_html": "https://figshare.com/articles/dataset/Drosophila_central_brain_connectivity/13349282",
+ "timeline": {
+  "posted": "2021-02-23T01:07:49",
+  "firstOnline": "2020-12-11"
+ },
+ "resource_title": null,
+ "resource_doi": null
+}
